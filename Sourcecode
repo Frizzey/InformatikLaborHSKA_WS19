@@ -1,0 +1,129 @@
+/*
+*Informatik Labor Projekt Richard Schifferdecker
+*Das Projekt soll eine Wischerautomatik wie im alltäglichen KFZ simulieren.
+*Dazu wird ein Refletionssensor von Pololu (QTR_HD-01-RC) verwendet.
+*Die Ausgabe erfolgt auf einem 0.91" großen OLED Display von ADA FRUIT
+*SCL= PIN 22 ... SDA= PIN 21
+*
+*/
+
+
+#include <sd_diskio.h>
+#include <sd_defines.h>
+#include <SD.h>
+#include <SPI.h>                                                            //  Einbinden aller Bibliotheken
+#include <Wire.h>                                             //  
+#include <Adafruit_SSD1306.h>                                               //  Display Bibliothek
+#include <Adafruit_GFX.h>
+#include <Servo.h>
+
+/*************************************/
+#define OLED_RESET 4                                                        //  OLED Display initialisieren
+#define SCREEN_WIDTH 128                                                    //  Breite des Displays in Pixel
+#define SCREEN_HEIGHT 64                          //  Höhe des Displays in Pixel
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+/*************************************/
+static const int servoPin = 4;
+Servo servo1;
+int Wischermotor = 19;                            //  GPIO Outbreak auf dem ESP, hier PIN 19
+int Reflektion;                                 //  .
+int Analogwert;                                                             //  Wischermotor ist der Messpin wo die Mitte des SpSonnenungsteilers auf Pin 14 (GPIO 14) liegt.
+void Sonne();                                                               //  Funktionen für Bildschirm
+void Regen();                                 //  . 
+int pos = 0;
+void Wischa();
+/*************************************/
+void setup()                                                                // Setup-Funktion für Hardware (Display und Sensor/Output)
+{
+  Serial.begin(115200);                                               //  Baud Rate
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.display();
+  display.clearDisplay();
+  delay(2000);
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+
+  pinMode(Wischermotor, OUTPUT);                                          //  Pin 14 ist als Ausgang für den Wischermotor definiert
+    servo1.attach(servoPin);
+}
+
+/*************************************/
+void loop()
+
+{
+
+  Analogwert = analogRead(26);                        //  12 Bit Auflösung für 4096 Werte (0-4095). 0,23- 3.23V.
+  if (Analogwert > 185)                                                       //  Sobald der Wert der Reflektion >= 185 ist, soll das Display "Sonne" anzeigen. 
+  {    Sonne();
+    Serial.println(analogRead(26)); Serial.print("Sonne.\n");              //  analogRead gibt den Messwert im SeriellenMonitor wieder.
+
+    digitalWrite(Wischermotor, LOW);                                          //  Der Wischermotor soll ausgeschaltet sein, sobald der Wert 500 übersteigt.  
+
+  }
+  else
+  {
+    Serial.println(analogRead(26)); Serial.print("Regen.\n");        //  unterhalb des Wertes soll der Scheibenwischer angetaktet werden.
+    digitalWrite(Wischermotor, HIGH);                                 //  Der Wischermotor wird hiermit eingeschaltet.
+   /* for (pos = 0; pos < 150; pos++)
+      servol.write(720);
+      
+   /* delay(5);*/
+    Wischa();
+    Regen();
+    delay(150);                                                     //  Durch stetige Überwachung geht der Wischermotor wieder aus, sobald der Wert überstiegen wird
+
+
+
+
+
+  }
+}
+
+/*************************************/
+void Sonne()                                                                //  "Sonne" auf Display schreiben
+{
+  display.clearDisplay();
+  display.setTextSize(2);                                                   //  Textgröße 
+  display.setCursor(14, 14);                                                 //  Position wo der Text beginnen soll
+  display.println("SONNE");                                             //  Der Text "Sonne lol" soll angezeigt werden.
+  display.setTextSize(1, 2);
+  display.setCursor(60, 40);
+  display.println("Wert:");
+  display.setTextSize(1, 2);
+  display.setCursor(90, 40);
+  display.println(analogRead(26));
+  display.display();
+}
+
+/*************************************/
+void Regen()                                                                //  "Regen" auf display schreiben
+{
+  display.clearDisplay();
+  display.setCursor(10, 14);
+  display.setTextSize(2);
+  display.println("Wischen");                         //  Regen wird auf dem Display angezeigt
+  display.setTextSize(1, 2);
+  display.setCursor(60, 40);
+  display.println("Wert:");
+  display.setTextSize(1, 2);
+  display.setCursor(90, 40);
+  display.println(analogRead(26));
+  display.display();
+}
+
+void Wischa()
+{
+for(int posDegrees = 0; posDegrees <= 180; posDegrees++) {
+        servo1.write(posDegrees);
+        Serial.println(posDegrees);
+        delay(2);
+    }
+
+    for(int posDegrees = 180; posDegrees >= 0; posDegrees--) {
+        servo1.write(posDegrees);
+        Serial.println(posDegrees);
+        delay(2);
+    }
+}
